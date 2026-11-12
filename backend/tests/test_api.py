@@ -61,3 +61,42 @@ def test_risk_scoring_endpoint():
     assert response.status_code == 200
     assert response.json()["risk_score"] == 80
     assert response.json()["risk_level"] == "HIGH"
+
+
+def test_transfer_reconciliation_endpoint():
+    response = client.get("/api/transfers?limit=100")
+
+    assert response.status_code == 200
+
+    transfers = response.json()
+
+    assert isinstance(transfers, list)
+    assert len(transfers) > 0
+
+    for transfer in transfers:
+        assert "amounts_match" in transfer
+        assert "computed_reconciliation_status" in transfer
+
+    assert any(
+        transfer["computed_reconciliation_status"] == "MISMATCHED"
+        for transfer in transfers
+    )
+
+
+def test_case_audit_history_endpoint():
+    cases_response = client.get("/api/cases?limit=1")
+
+    assert cases_response.status_code == 200
+
+    cases = cases_response.json()
+
+    assert len(cases) > 0
+
+    case_id = cases[0]["case_id"]
+
+    response = client.get(
+        f"/api/cases/{case_id}/actions?limit=100"
+    )
+
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
