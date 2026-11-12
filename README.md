@@ -206,7 +206,7 @@ Run backend tests from the `backend` directory:
 python -m pytest tests -v
 ```
 
-**Latest recorded test result:** 12 passed, 0 failed.
+**Latest recorded test result:** 14 passed, 0 failed.
 
 Data validation can be run using:
 
