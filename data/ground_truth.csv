@@ -1,0 +1,6 @@
+anomaly_id,anomaly_type,description,affected_record_id
+ANOM-001,CLOSED_ACCOUNT_TRANSACTION,Transaction occurred after account closure,TXN-2026-00099999
+ANOM-002,NEGATIVE_BALANCE_WITHOUT_OVERDRAFT,Negative balance with zero overdraft limit,TXN-2026-00100000
+ANOM-003,TRANSFER_RECONCILIATION_MISMATCH,Transfer link amount differs from transaction legs,TL-000001
+ANOM-004,ALERT_WITHOUT_TRANSACTION,Alert does not reference a triggering transaction,ALT-2026-001000
+ANOM-005,CASE_DISPOSITION_PRECEDES_ALERT,Case disposition timestamp precedes alert creation,CASE-2026-000005
