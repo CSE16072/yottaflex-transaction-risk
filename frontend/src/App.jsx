@@ -9,6 +9,7 @@ function App() {
   const [transactions, setTransactions] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [cases, setCases] = useState([]);
+  const [transfers, setTransfers] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -18,35 +19,49 @@ function App() {
     setError("");
 
     try {
-      const [dashboardRes, transactionRes, alertRes, caseRes] =
-        await Promise.all([
-          fetch(`${API}/api/dashboard`),
-          fetch(`${API}/api/transactions?limit=50`),
-          fetch(`${API}/api/alerts?limit=50`),
-          fetch(`${API}/api/cases?limit=50`),
-        ]);
+      const [
+        dashboardRes,
+        transactionRes,
+        alertRes,
+        caseRes,
+        transferRes,
+      ] = await Promise.all([
+        fetch(`${API}/api/dashboard`),
+        fetch(`${API}/api/transactions?limit=50`),
+        fetch(`${API}/api/alerts?limit=50`),
+        fetch(`${API}/api/cases?limit=50`),
+        fetch(`${API}/api/transfers?limit=100`),
+      ]);
 
       if (
         !dashboardRes.ok ||
         !transactionRes.ok ||
         !alertRes.ok ||
-        !caseRes.ok
+        !caseRes.ok ||
+        !transferRes.ok
       ) {
         throw new Error("The backend returned an error.");
       }
 
-      const [dashboardData, transactionData, alertData, caseData] =
-        await Promise.all([
-          dashboardRes.json(),
-          transactionRes.json(),
-          alertRes.json(),
-          caseRes.json(),
-        ]);
+      const [
+        dashboardData,
+        transactionData,
+        alertData,
+        caseData,
+        transferData,
+      ] = await Promise.all([
+        dashboardRes.json(),
+        transactionRes.json(),
+        alertRes.json(),
+        caseRes.json(),
+        transferRes.json(),
+      ]);
 
       setDashboard(dashboardData);
       setTransactions(transactionData);
       setAlerts(alertData);
       setCases(caseData);
+      setTransfers(transferData);
     } catch (err) {
       setError(
         "Unable to connect to the backend. Please check that the FastAPI server is running."
@@ -86,7 +101,8 @@ function App() {
     new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(Number(amount || 0));
 
   const date = (value) =>
@@ -94,6 +110,12 @@ function App() {
 
   const riskClass = (level) =>
     String(level || "low").toLowerCase();
+
+  const mismatchedTransfers = transfers.filter(
+    (item) => item.computed_reconciliation_status === "MISMATCHED"
+  );
+
+  const matchedTransfers = transfers.length - mismatchedTransfers.length;
 
   function Metric({ label, value, detail, color }) {
     return (
@@ -111,7 +133,11 @@ function App() {
   }
 
   if (loading && !dashboard) {
-    return <div className="loading-screen">Loading risk intelligence dashboard...</div>;
+    return (
+      <div className="loading-screen">
+        Loading risk intelligence dashboard...
+      </div>
+    );
   }
 
   return (
@@ -156,6 +182,18 @@ function App() {
           <span>▤</span> Case Management
         </button>
 
+        <button
+          className={activeTab === "transfers" ? "nav-item active" : "nav-item"}
+          onClick={() => setActiveTab("transfers")}
+        >
+          <span>⇄</span> Transfer Reconciliation
+          {mismatchedTransfers.length > 0 && (
+            <span className="nav-count">
+              {mismatchedTransfers.length}
+            </span>
+          )}
+        </button>
+
         <div className="sidebar-bottom">
           <div className="system-status">
             <span className="online-dot" />
@@ -168,12 +206,15 @@ function App() {
       <main className="main-content">
         <header className="topbar">
           <div>
-            <div className="breadcrumb">Risk Intelligence / {activeTab}</div>
+            <div className="breadcrumb">
+              Risk Intelligence / {activeTab}
+            </div>
             <h1>
               {activeTab === "overview" && "Risk Overview"}
               {activeTab === "transactions" && "Transaction Monitoring"}
               {activeTab === "alerts" && "Risk Alerts"}
               {activeTab === "cases" && "Case Management"}
+              {activeTab === "transfers" && "Transfer Reconciliation"}
             </h1>
           </div>
 
@@ -193,7 +234,9 @@ function App() {
           <>
             <section className="welcome-panel">
               <div>
-                <div className="eyebrow">TRANSACTION RISK MONITORING</div>
+                <div className="eyebrow">
+                  TRANSACTION RISK MONITORING
+                </div>
                 <h2>Financial activity. Clearer decisions.</h2>
                 <p>
                   Monitor transactions, identify suspicious activity and
@@ -261,10 +304,16 @@ function App() {
                   <div className="alert-row" key={alert.alert_id}>
                     <div>
                       <strong>{alert.alert_id}</strong>
-                      <p>{alert.rule_name || alert.explanation || "Risk detected"}</p>
+                      <p>
+                        {alert.rule_name ||
+                          alert.explanation ||
+                          "Risk detected"}
+                      </p>
                     </div>
                     <div className="alert-score">
-                      <span className={`risk-badge ${riskClass(alert.risk_level)}`}>
+                      <span
+                        className={`risk-badge ${riskClass(alert.risk_level)}`}
+                      >
                         {alert.risk_level}
                       </span>
                       <strong>{alert.risk_score}/100</strong>
@@ -272,7 +321,9 @@ function App() {
                   </div>
                 ))}
 
-                {alerts.length === 0 && <p className="empty-state">No alerts found.</p>}
+                {alerts.length === 0 && (
+                  <p className="empty-state">No alerts found.</p>
+                )}
               </div>
 
               <div className="panel">
@@ -334,7 +385,9 @@ function App() {
                 <h3>Transaction Records</h3>
                 <p>Showing up to 50 latest transactions</p>
               </div>
-              <span className="record-count">{transactions.length} records</span>
+              <span className="record-count">
+                {transactions.length} records
+              </span>
             </div>
             <TransactionTable
               transactions={transactions}
@@ -351,7 +404,9 @@ function App() {
                 <h3>Risk Alert Register</h3>
                 <p>Risk scores and rule-based explanations</p>
               </div>
-              <span className="record-count">{alerts.length} alerts</span>
+              <span className="record-count">
+                {alerts.length} alerts
+              </span>
             </div>
 
             <div className="table-wrap">
@@ -375,11 +430,15 @@ function App() {
                       <td>{alert.transaction_id || "No transaction"}</td>
                       <td><strong>{alert.risk_score}/100</strong></td>
                       <td>
-                        <span className={`risk-badge ${riskClass(alert.risk_level)}`}>
+                        <span
+                          className={`risk-badge ${riskClass(alert.risk_level)}`}
+                        >
                           {alert.risk_level}
                         </span>
                       </td>
-                      <td>{alert.rule_name || alert.explanation || "—"}</td>
+                      <td>
+                        {alert.rule_name || alert.explanation || "—"}
+                      </td>
                       <td>{alert.alert_status}</td>
                     </tr>
                   ))}
@@ -396,7 +455,9 @@ function App() {
                 <h3>Investigation Cases</h3>
                 <p>Review and update case status</p>
               </div>
-              <span className="record-count">{cases.length} cases</span>
+              <span className="record-count">
+                {cases.length} cases
+              </span>
             </div>
 
             <div className="table-wrap">
@@ -418,7 +479,9 @@ function App() {
                       <td className="id-cell">{item.case_id}</td>
                       <td>{item.customer_id}</td>
                       <td>
-                        <span className={`risk-badge ${riskClass(item.priority)}`}>
+                        <span
+                          className={`risk-badge ${riskClass(item.priority)}`}
+                        >
                           {item.priority}
                         </span>
                       </td>
@@ -430,12 +493,16 @@ function App() {
                         item.case_status !== "CLOSED" ? (
                           <button
                             className="resolve-button"
-                            onClick={() => updateCase(item.case_id, "RESOLVED")}
+                            onClick={() =>
+                              updateCase(item.case_id, "RESOLVED")
+                            }
                           >
                             Resolve
                           </button>
                         ) : (
-                          <span className="resolved-label">Completed</span>
+                          <span className="resolved-label">
+                            Completed
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -446,9 +513,106 @@ function App() {
           </section>
         )}
 
+        {activeTab === "transfers" && (
+          <>
+            <section className="metrics-grid">
+              <Metric
+                label="Total Transfers"
+                value={transfers.length}
+                detail="Loaded transfer records"
+                color="blue"
+              />
+              <Metric
+                label="Matched Transfers"
+                value={matchedTransfers}
+                detail="Amounts reconciled"
+                color="green"
+              />
+              <Metric
+                label="Mismatched Transfers"
+                value={mismatchedTransfers.length}
+                detail="Require investigation"
+                color="red"
+              />
+            </section>
+
+            <section className="panel table-panel">
+              <div className="panel-heading">
+                <div>
+                  <h3>Transfer Reconciliation Register</h3>
+                  <p>
+                    Comparing expected transfer amounts against debit
+                    and credit transactions
+                  </p>
+                </div>
+                <span className="record-count">
+                  {transfers.length} transfers
+                </span>
+              </div>
+
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Transfer ID</th>
+                      <th>Expected Amount</th>
+                      <th>Debit Amount</th>
+                      <th>Credit Amount</th>
+                      <th>Expected–Debit Gap</th>
+                      <th>Reconciliation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transfers.map((item) => {
+                      const expectedDebitGap = Math.abs(
+                        Number(item.transfer_amount) -
+                        Number(item.debit_amount)
+                      );
+
+                      return (
+                        <tr key={item.transfer_link_id}>
+                          <td className="id-cell">
+                            {item.transfer_link_id}
+                          </td>
+                          <td>{money(item.transfer_amount)}</td>
+                          <td>{money(item.debit_amount)}</td>
+                          <td>{money(item.credit_amount)}</td>
+                          <td>{money(expectedDebitGap)}</td>
+                          <td>
+                            <span
+                              className={`risk-badge ${
+                                item.computed_reconciliation_status ===
+                                "MISMATCHED"
+                                  ? "high"
+                                  : "low"
+                              }`}
+                            >
+                              {item.computed_reconciliation_status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {transfers.length === 0 && (
+                      <tr>
+                        <td colSpan="6" className="empty-state">
+                          No transfer records found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
+        )}
+
         <footer className="footer">
           <span>YottaFlex Transaction Risk Intelligence</span>
-          <span>Synthetic demonstration data · Rule-based risk scoring</span>
+          <span>
+            Synthetic demonstration data · Rule-based risk scoring
+          </span>
         </footer>
       </main>
     </div>
@@ -473,14 +637,21 @@ function TransactionTable({ transactions, money, date }) {
         <tbody>
           {transactions.map((transaction) => (
             <tr key={transaction.transaction_id}>
-              <td className="id-cell">{transaction.transaction_id}</td>
+              <td className="id-cell">
+                {transaction.transaction_id}
+              </td>
               <td>
-                <strong>{transaction.customer_name || "Unknown"}</strong>
+                <strong>
+                  {transaction.customer_name || "Unknown"}
+                </strong>
                 <small>{transaction.customer_id}</small>
               </td>
               <td>{transaction.merchant_name || "—"}</td>
               <td className="amount-cell">
-                {money(transaction.amount, transaction.currency || "INR")}
+                {money(
+                  transaction.amount,
+                  transaction.currency || "INR"
+                )}
               </td>
               <td>{transaction.transaction_type}</td>
               <td>
@@ -491,6 +662,7 @@ function TransactionTable({ transactions, money, date }) {
               <td>{date(transaction.transaction_timestamp)}</td>
             </tr>
           ))}
+
           {transactions.length === 0 && (
             <tr>
               <td colSpan="7" className="empty-state">
